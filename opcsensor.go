@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.viam.com/rdk/components/sensor"
+	"go.viam.com/rdk/data"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 
@@ -134,6 +135,15 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 	for idx, val := range readResponse.Results {
 		result[s.cfg.NodeIDs[idx]] = val.Value.Value()
 	}
+
+	if extra[data.FromDMString] == true {
+		// If not data management collector, return underlying stream contents without filtering.
+		// TODO: Make filter field configurable
+		if result["ns=1;s=PROCESS_ACTIVE"] == false {
+			return nil, data.ErrNoCaptureToStore
+		}
+	}
+
 	return result, nil
 }
 
