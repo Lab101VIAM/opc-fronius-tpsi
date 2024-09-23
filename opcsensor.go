@@ -12,9 +12,9 @@ import (
 	"go.viam.com/rdk/data"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
-
 	"go.viam.com/utils"
 
+	"github.com/google/uuid"
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
 )
@@ -33,8 +33,9 @@ func init() {
 
 // OPC UA client configuration
 type Config struct {
-	Endpoint string   `json:"endpoint"`
-	NodeIDs  []string `json:"nodeids"`
+	Endpoint    string   `json:"endpoint"`
+	NodeIDs     []string `json:"nodeids"`
+	CreateJobID bool     `json:"create_job_id"`
 }
 
 // Validate validates the config and returns implicit dependencies.
@@ -87,6 +88,9 @@ type opcSensor struct {
 	cancelCtx  context.Context
 	cancelFunc func()
 
+	createJobID bool
+	job_id      string
+
 	// OPC client
 	opcclient *opcua.Client
 }
@@ -104,6 +108,8 @@ func (s *opcSensor) Reconfigure(ctx context.Context, deps resource.Dependencies,
 	}
 
 	s.name = conf.ResourceName()
+	s.createJobID = cfg.CreateJobID
+	s.job_id = ""
 
 	// Update nodeIDs
 	s.cfg.NodeIDs = cfg.NodeIDs
@@ -136,14 +142,27 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 		result[s.cfg.NodeIDs[idx]] = val.Value.Value()
 	}
 
+	// If the client is the Viam data manager
 	if extra[data.FromDMString] == true {
 		// If not data management collector, return underlying stream contents without filtering.
 		// TODO: Make filter field configurable
-		if result["ns=1;s=PROCESS_ACTIVE"] == false {
+		if result["ns=1;s=PROCESS_ACTIVE"] == true {
+			if s.job_id == "" && s.createJobID {
+				// Add Job ID if welding process has started
+				s.job_id = uuid.New().String()
+			}
+			result["job_id"] = s.job_id
+			return result, nil
+		} else {
+			if s.createJobID && s.job_id != "" {
+				s.job_id = ""
+			}
 			return nil, data.ErrNoCaptureToStore
 		}
 	}
-
+	if s.createJobID {
+		result["job_id"] = s.job_id
+	}
 	return result, nil
 }
 

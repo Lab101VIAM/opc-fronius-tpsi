@@ -47,6 +47,7 @@ The following attributes are available for `<INSERT API NAMESPACE>:<INSERT API N
 | ------- | ------ | ------------ | ----------- |
 | `nodeids` | []string | Optional | List of node ids to be read |
 | `endpoint` | string | **Required** | The opc ua server address and port |
+| `create_job_id` | boolean | Optional | Adds a field `job_id` with a uuid when the welding process is active. Default is false |
 
 ### Example configuration
 
