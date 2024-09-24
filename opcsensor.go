@@ -5,6 +5,7 @@ package opcsensor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -140,6 +141,8 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 	result := map[string]interface{}{}
 	for idx, val := range readResponse.Results {
 		result[s.cfg.NodeIDs[idx]] = val.Value.Value()
+		// For data type debugging
+		result[s.cfg.NodeIDs[idx]+"_type"] = val.Value.Type().String()
 	}
 
 	// If the client is the Viam data manager
@@ -169,28 +172,33 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 // DoCommand is used to set opc ua attributes
 func (s *opcSensor) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
 	if wvs, ok := cmd["write"]; ok {
-		if nodes, ok := wvs.(map[string]any); ok {
+		if nodesList, ok := wvs.([]any); ok {
 			nodesToWrite := []*ua.WriteValue{}
-			for k, v := range nodes {
+			for _, node := range nodesList {
+				// Validate and convert number values
+				valnode, err := prepWriteNode(node)
+				if err != nil {
+					return nil, err
+				}
 				// Check NodeID
-				nodeid, err := ua.ParseNodeID(k)
+				nodeid, err := ua.ParseNodeID(valnode.nodeid)
 				if err != nil {
 					s.logger.Errorf("invalid node id: %v", err)
 					return nil, err
 				}
-				// Convert value
-				v, err := ua.NewVariant(v)
+				s.logger.Infof("Into NewVariant: %T", valnode.value)
+				nv, err := ua.NewVariant(valnode.value)
+				s.logger.Infof("Out from NewVAriant: %s", nv.Type())
 				if err != nil {
 					s.logger.Errorf("invalid value: %v", err)
 					return nil, err
 				}
-
 				nwv := ua.WriteValue{
 					NodeID:      nodeid,
 					AttributeID: ua.AttributeIDValue,
 					Value: &ua.DataValue{
 						EncodingMask: ua.DataValueValue,
-						Value:        v,
+						Value:        nv,
 					},
 				}
 				nodesToWrite = append(nodesToWrite, &nwv)
@@ -211,6 +219,65 @@ func (s *opcSensor) DoCommand(ctx context.Context, cmd map[string]interface{}) (
 		}
 	}
 	return nil, nil
+}
+
+type writeNode struct {
+	nodeid string
+	value  any
+}
+
+func prepWriteNode(node any) (*writeNode, error) {
+	verifnode := writeNode{}
+	if node, ok := node.(map[string]any); ok {
+		// nodeid required check
+		if v, ok := node["nodeid"]; ok {
+			if sv, ok := v.(string); ok {
+				verifnode.nodeid = sv
+			} else {
+				return nil, fmt.Errorf(`"nodeid" value must be string`)
+			}
+		} else {
+			return nil, fmt.Errorf(`"nodeid" is required`)
+		}
+
+		if v, ok := node["value"]; ok {
+			// Convert number value into the appropriate number type
+			if n, ok := v.(float64); ok {
+				// if type is provided
+				if vt, ok := node["type"]; ok {
+					switch vt {
+					case "int8":
+						verifnode.value = int8(n)
+					case "uint8":
+						verifnode.value = uint8(n)
+					case "int16":
+						verifnode.value = int16(n)
+					case "uint16":
+						verifnode.value = uint16(n)
+					case "int32":
+						verifnode.value = int32(n)
+					case "uint32":
+						verifnode.value = uint32(n)
+					case "int64":
+						verifnode.value = int64(n)
+					case "uint64":
+						verifnode.value = uint64(n)
+					case "float32":
+						verifnode.value = float32(n)
+					case "float64":
+						verifnode.value = n
+					}
+				}
+			} else {
+				verifnode.value = v
+			}
+		} else {
+			return nil, fmt.Errorf(`"value" is required`)
+		}
+	} else {
+		return nil, fmt.Errorf("node configuration invalid")
+	}
+	return &verifnode, nil
 }
 
 // Close closes the underlying generic.
