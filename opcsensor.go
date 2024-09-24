@@ -142,7 +142,7 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 	for idx, val := range readResponse.Results {
 		result[s.cfg.NodeIDs[idx]] = val.Value.Value()
 		// For data type debugging
-		result[s.cfg.NodeIDs[idx]+"_type"] = val.Value.Type().String()
+		//result[s.cfg.NodeIDs[idx]+"_type"] = val.Value.Type().String()
 	}
 
 	// If the client is the Viam data manager
