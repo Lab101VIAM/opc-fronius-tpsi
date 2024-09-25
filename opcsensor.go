@@ -282,8 +282,12 @@ func prepWriteNode(node any) (*writeNode, error) {
 
 // Close closes the underlying generic.
 func (s *opcSensor) Close(ctx context.Context) error {
+	if err := s.opcclient.Close(ctx); err == nil {
+		s.logger.Infof("OPC client disconnected")
+	} else {
+		s.logger.Infof("%s", err)
+	}
 	s.cancelFunc()
-	s.opcclient.Close(ctx)
 	return nil
 }
 
@@ -342,7 +346,11 @@ func (s *opcSensor) readOPC(ctx context.Context) (*ua.ReadResponse, error) {
 	}
 
 	if resp != nil && resp.Results[0].Status != ua.StatusOK {
-		s.logger.Errorf("Status not OK: %v", resp.Results[0].Status)
+		var status []string
+		for _, result := range resp.Results {
+			status = append(status, fmt.Sprintf("%s", result.Status))
+		}
+		s.logger.Errorf("Status not OK: %v", status)
 	}
 	return resp, nil
 }
