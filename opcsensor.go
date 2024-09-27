@@ -344,18 +344,17 @@ func (s *opcSensor) readOPC(ctx context.Context) (*ua.ReadResponse, error) {
 			s.logger.Errorf("opc ua read failed: %s", err)
 		}
 	}
+
 	// Check the reading results for errors
 	if resp.Results != nil {
 		var status []string
-		var statusNotOK bool = false
-		for _, result := range resp.Results {
+		for idx, result := range resp.Results {
 			if result.Status != ua.StatusOK {
-				statusNotOK = true
+				status = append(status, fmt.Sprintf("%s: %s", s.cfg.NodeIDs[idx], result.Status))
 			}
-			status = append(status, fmt.Sprintf("%s", result.Status))
 		}
-		if statusNotOK {
-			err := fmt.Errorf("some nodes reading status is not ok: %v", status)
+		if len(status) > 0 {
+			err := fmt.Errorf("%s", status)
 			s.logger.Errorf("%s", err)
 			return nil, err
 		}
