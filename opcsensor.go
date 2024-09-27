@@ -145,26 +145,47 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 		//result[s.cfg.NodeIDs[idx]+"_type"] = val.Value.Type().String()
 	}
 
+	// TODO: Make filter field and job_id key configurable
+	filter := "ns=1;s=PROCESS_ACTIVE"
+	jidkey := "job_id"
+
 	// If the client is the Viam data manager
 	if extra[data.FromDMString] == true {
-		// If not data management collector, return underlying stream contents without filtering.
-		// TODO: Make filter field configurable
-		if result["ns=1;s=PROCESS_ACTIVE"] == true {
-			if s.job_id == "" && s.createJobID {
-				// Add Job ID if welding process has started
-				s.job_id = uuid.New().String()
+		// Start the job recording with automatically generate UUID as job id
+		if s.createJobID {
+			switch {
+			// Create job id at the beginning of the welding job
+			case result[filter] == true && s.job_id == "":
+				{
+					s.job_id = uuid.New().String()
+					result[jidkey] = s.job_id
+					return result, nil
+				}
+			// Welding job in progress
+			case result[filter] == true && s.job_id != "":
+				{
+					result[jidkey] = s.job_id
+					return result, nil
+				}
+			// Stop job recording but include the last reading in the recording where
+			// filter criteria is not met anymore to be able to easily identify the end of a job
+			case result[filter] == false && s.job_id != "":
+				{
+					result[jidkey] = s.job_id
+					s.job_id = ""
+					return result, nil
+				}
 			}
-			result["job_id"] = s.job_id
-			return result, nil
-		} else {
-			if s.createJobID && s.job_id != "" {
-				s.job_id = ""
-			}
-			return nil, data.ErrNoCaptureToStore
 		}
+		// Only record data when filter criteria met
+		if result[filter] == true {
+			return result, nil
+		}
+		return nil, data.ErrNoCaptureToStore
 	}
+	// If createJobID is configured and a process active, return the job id for other clients than Viam data manager
 	if s.createJobID {
-		result["job_id"] = s.job_id
+		result[jidkey] = s.job_id
 	}
 	return result, nil
 }
