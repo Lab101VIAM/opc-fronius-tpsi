@@ -34,9 +34,14 @@ func init() {
 
 // OPC UA client configuration
 type Config struct {
-	Endpoint    string   `json:"endpoint"`
-	NodeIDs     []string `json:"nodeids"`
-	CreateJobID bool     `json:"create_job_id"`
+	Endpoint string   `json:"endpoint"`
+	NodeIDs  []string `json:"nodeids"`
+	//CreateJobID bool     `json:"create_job_id"`
+
+	// New config
+	JobID_Trigger string `json:"jobid_trigger"` // Triggers automatic creation of a uuid
+	JobID_Label   string `json:"jobid_label"`   // Stores the automatically created job id
+	JobID_Filter  bool   `json:"jobid_filter"`  // Viam data manager will only record when a job id is set
 }
 
 // Validate validates the config and returns implicit dependencies.
@@ -89,8 +94,7 @@ type opcSensor struct {
 	cancelCtx  context.Context
 	cancelFunc func()
 
-	createJobID bool
-	job_id      string
+	job_id string // stores the automatically created job id during a process
 
 	// OPC client
 	opcclient *opcua.Client
@@ -108,12 +112,12 @@ func (s *opcSensor) Reconfigure(ctx context.Context, deps resource.Dependencies,
 		return err
 	}
 
+	s.cfg = cfg
 	s.name = conf.ResourceName()
-	s.createJobID = cfg.CreateJobID
 	s.job_id = ""
 
 	// Update nodeIDs
-	s.cfg.NodeIDs = cfg.NodeIDs
+	//s.cfg.NodeIDs = cfg.NodeIDs
 
 	// OPC client init
 	// examples: https://github.com/gopcua/opcua/blob/main/examples/read/read.go
@@ -145,47 +149,50 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 		//result[s.cfg.NodeIDs[idx]+"_type"] = val.Value.Type().String()
 	}
 
+	// Add job id field if automatic creation of job id is configured
+	if s.cfg.JobID_Trigger != "" {
+		result[s.cfg.JobID_Label] = s.job_id
+	}
+
+	// Return the results if not Viam data manager
+	if extra[data.FromDMString] != true {
+		return result, nil
+	}
+
 	// TODO: Make filter field and job_id key configurable
-	filter := "ns=1;s=PROCESS_ACTIVE"
-	jidkey := "job_id"
+	filter := s.cfg.JobID_Trigger //"ns=1;s=PROCESS_ACTIVE"
+	jidkey := s.cfg.JobID_Label   //"job_id"
 
 	// If the client is the Viam data manager
-	if extra[data.FromDMString] == true {
-		// Start the job recording with automatically generate UUID as job id
-		if s.createJobID {
-			switch {
-			// Create job id at the beginning of the welding job
-			case result[filter] == true && s.job_id == "":
-				{
-					s.job_id = uuid.New().String()
-					result[jidkey] = s.job_id
-					return result, nil
-				}
-			// Welding job in progress
-			case result[filter] == true && s.job_id != "":
-				{
-					result[jidkey] = s.job_id
-					return result, nil
-				}
-			// Stop job recording but include the last reading in the recording where
-			// filter criteria is not met anymore to be able to easily identify the end of a job
-			case result[filter] == false && s.job_id != "":
-				{
-					result[jidkey] = s.job_id
-					s.job_id = ""
-					return result, nil
-				}
+	// Start the job recording with automatically generate UUID as job id
+	if s.cfg.JobID_Trigger != "" {
+		switch {
+		// Create job id at the beginning of the welding job
+		case result[filter] == true && s.job_id == "":
+			{
+				s.job_id = uuid.New().String()
+				result[jidkey] = s.job_id
+				//return result, nil
+			}
+		// Welding job in progress
+		case result[filter] == true && s.job_id != "":
+			{
+				result[jidkey] = s.job_id
+				//return result, nil
+			}
+		// Stop job recording but include the last reading in the recording where
+		// filter criteria is not met anymore to be able to easily identify the end of a job
+		case result[filter] == false && s.job_id != "":
+			{
+				result[jidkey] = s.job_id
+				s.job_id = ""
+				//return result, nil
 			}
 		}
-		// Only record data when filter criteria met
-		if result[filter] == true {
-			return result, nil
-		}
-		return nil, data.ErrNoCaptureToStore
 	}
-	// If createJobID is configured and a process active, return the job id for other clients than Viam data manager
-	if s.createJobID {
-		result[jidkey] = s.job_id
+	// Only record data when filter criteria met
+	if s.cfg.JobID_Filter && result[s.cfg.JobID_Label] == "" {
+		return nil, data.ErrNoCaptureToStore
 	}
 	return result, nil
 }
