@@ -369,7 +369,7 @@ func (s *opcSensor) readOPC(ctx context.Context) (*ua.ReadResponse, error) {
 			continue
 
 		default:
-			s.logger.Errorf("opc ua read failed: %s", err)
+			s.logger.Errorf("Read failed: %s", err)
 		}
 	}
 
