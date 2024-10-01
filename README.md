@@ -47,6 +47,7 @@ The following attributes are available for `<INSERT API NAMESPACE>:<INSERT API N
 | ------- | ------ | ------------ | ----------- |
 | `nodeids` | []string | Optional | List of node ids to be read |
 | `endpoint` | string | **Required** | The opc ua server address and port |
+| `create_job_id` | boolean | Optional | Adds a field `job_id` with a uuid when the welding process is active. Default is false |
 
 ### Example configuration
 
@@ -62,14 +63,24 @@ The following attributes are available for `<INSERT API NAMESPACE>:<INSERT API N
 
 ### Write Attributes
 
-The OPC UA client module allows you to set nodes to certain values by using the following parameters 
+The OPC UA client module allows you to set nodes to certain values by using the following parameters.
+For number values you can specify the data type using one of `"int8"|"uint8"|"int16"|"uint16"|"int32"|"uint32"|"int64"|"uint64"|"float32"|"float64"` as shown below. Default is `float64`.
 
 ```json
 {
-  "write":{
-    "ns=2;i=2":100,
-    "ns=2;i=3":0.1
-  }
+  "write":[{
+    "nodeid":"ns=1;s=JOBNUMBER",
+    "value": 7,
+    "type": "float32"
+  },
+  {
+    "nodeid":"ns=1;s=JOBMODE",
+    "value": false
+  },
+    {
+    "nodeid":"ns=1;s=PARTSERIALNUMBER",
+    "value": "X1234"
+  }]
 }
 ```
 
