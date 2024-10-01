@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	Model = resource.NewModel("viam-soleng", "opc-ua", "opcsensor")
+	Model = resource.NewModel("lab101", "opc-ua", "fronius-tpsi")
 )
 
 func init() {

@@ -1,17 +1,22 @@
 {
-  "module_id": "viam-soleng:opc-ua-client",
-  "visibility": "public",
-  "url": "https://github.com/viam-soleng/opc-ua-client",
-  "description": "OPC UA client module allowing you to read attributes.",
+  "$schema": "https://dl.viam.dev/module.schema.json",
+  "module_id": "lab101:opc-fronius-tpsi",
+  "visibility": "private",
+  "url": "https://github.com/Lab101VIAM/opc-fronius-tpsi",
+  "description": "OPC UA client for Fronius TPSi welding machines",
   "models": [
     {
       "api": "rdk:component:sensor",
-      "model": "viam-soleng:opc-ua:opcsensor"
+      "model": "lab101:opc-ua:fronius-tpsi"
     }
   ],
   "entrypoint": "bin/opcsensor",
   "build": {
     "build": "make module",
-    "arch" : ["darwin/arm64", "linux/amd64", "linux/arm64"]
+    "arch": [
+      "darwin/arm64",
+      "linux/amd64",
+      "linux/arm64"
+    ]
   }
 }
