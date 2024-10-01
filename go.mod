@@ -3,6 +3,7 @@ module github.com/felixreichenbach/opc-ua/opcsensor
 go 1.22.0
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/gopcua/opcua v0.5.3
 	go.viam.com/rdk v0.28.1
 	go.viam.com/utils v0.1.79
@@ -64,7 +65,6 @@ require (
 	github.com/gonuts/binary v0.2.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.11.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
