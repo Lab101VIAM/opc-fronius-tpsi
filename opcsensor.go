@@ -78,7 +78,6 @@ func newOPCSensor(ctx context.Context, deps resource.Dependencies, rawConf resou
 
 	// The Reconfigure() method changes the values on the customSensor based on the attributes in the component config
 	if err := s.Reconfigure(ctx, deps, rawConf); err != nil {
-		logger.Error("Error configuring module with ", rawConf)
 		return nil, err
 	}
 
@@ -108,7 +107,7 @@ func (s *opcSensor) Name() resource.Name {
 func (s *opcSensor) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
 	cfg, err := resource.NativeConfig[*Config](conf)
 	if err != nil {
-		s.logger.Warn("Error reconfiguring module with ", err)
+		s.logger.Error(err)
 		return err
 	}
 
@@ -191,7 +190,7 @@ func (s *opcSensor) Readings(ctx context.Context, extra map[string]interface{}) 
 		}
 	}
 	// Only record data when filter criteria met
-	if s.cfg.JobID_Filter && result[s.cfg.JobID_Label] == "" {
+	if s.cfg.JobID_Filter && result[jidkey] == "" {
 		return nil, data.ErrNoCaptureToStore
 	}
 	return result, nil
